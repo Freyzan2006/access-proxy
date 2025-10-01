@@ -1,0 +1,9 @@
+port: 8080
+allowed_domains:
+  - api.github.com
+  - jsonplaceholder.typicode.com
+blocked_methods:
+  - DELETE
+  - PATCH
+rate_limit_per_minute: 100
+log_requests: true
