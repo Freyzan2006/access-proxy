@@ -1,17 +1,18 @@
 package config 
 
 type config struct {
-	Yaml *yamlConfig
 	Flags *flagConfig
+	Yaml *yamlConfig
 }
 
-func NewConfig(pathYaml string) *config {
+func NewConfig() *config {
 
-	ymlCfg := newYamlConfig(pathYaml);
 	flag := newFlagConfig();
+	ymlCfg := newYamlConfig(flag.Config);
+	
 
 	return &config{
-		Yaml: ymlCfg,
 		Flags: flag,
+		Yaml: ymlCfg,
 	}
 }
