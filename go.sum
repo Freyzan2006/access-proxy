@@ -1,3 +1,7 @@
+github.com/Freyzan2006/go-logger-lib v0.0.0-20251004115017-31176938f8e9 h1:Y5Ln+/7eSzdOeNKNM6xgnsSl5+0eQZqrJLNeulrqmic=
+github.com/Freyzan2006/go-logger-lib v0.0.0-20251004115017-31176938f8e9/go.mod h1:1O1sCEz7yizzjcfCGbBjkgWjtiZkW9eE24RpBClS1Y0=
+github.com/Freyzan2006/go-logger-lib v1.0.0 h1:MVbLrolzqA0BF/r/9QIth5XRqftk5GdMWa6HxQ+9NzI=
+github.com/Freyzan2006/go-logger-lib v1.0.0/go.mod h1:1O1sCEz7yizzjcfCGbBjkgWjtiZkW9eE24RpBClS1Y0=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=

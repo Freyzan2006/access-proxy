@@ -1,0 +1,3 @@
+[PID:13958] [dev] [INFO ] [2025-10-05 15:02:15] 🚀 Proxy сервер запущен на http://localhost:8080 (main.go:58)
+[PID:13958] [dev] [INFO ] [2025-10-05 15:02:24] 📡 GET / (main.go:53)
+[PID:13958] [dev] [INFO ] [2025-10-05 15:02:24] 📡 GET /favicon.ico (main.go:53)

@@ -17,16 +17,20 @@
 package main
 
 import (
-	"log"
+	// "log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 )
 
+import "github.com/Freyzan2006/go-logger-lib/pkg/logger"
+
 // Target — адрес, на который прокси будет пересылать запросы
 const Target = "https://jsonplaceholder.typicode.com"
 
 func main() {
+	log := logger.New("access-proxy.log", logger.LevelDebug, "internal", logger.ModeDev)
+
 	// Парсим целевой адрес
 	targetURL, err := url.Parse(Target)
 	if err != nil {
@@ -46,11 +50,11 @@ func main() {
 
 	// Оборачиваем в handler с логированием
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("📡 %s %s", r.Method, r.URL.Path)
+		log.Infof("📡 %s %s", r.Method, r.URL.Path)
 		proxy.ServeHTTP(w, r)
         
 	})
 
-	log.Println("🚀 Proxy сервер запущен на http://localhost:8080")
+	log.Infof("🚀 Proxy сервер запущен на http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
