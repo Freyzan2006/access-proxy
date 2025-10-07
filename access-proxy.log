@@ -1,1 +1,4 @@
-[PID:23189] [development] [INFO ] [2025-10-04 16:56:19] 🚀 Proxy сервер запущен на http://localhost:8080 (o:58)
+[PID:10452] [dev] [INFO ] [2025-10-07 15:26:08] 🚀 Proxy сервер запущен на http://localhost:8000 (proxy/server/http_server.go:34)
+[PID:12734] [dev] [INFO ] [2025-10-07 15:32:17] 🚀 Proxy сервер запущен на http://localhost:8000 (proxy/server/http_server.go:34)
+[PID:13470] [dev] [INFO ] [2025-10-07 15:35:49] 🚀 Proxy сервер запущен на http://localhost:3000 (proxy/server/http_server.go:34)
+[PID:13669] [dev] [INFO ] [2025-10-07 15:35:56] 🚀 Proxy сервер запущен на http://localhost:8000 (proxy/server/http_server.go:34)

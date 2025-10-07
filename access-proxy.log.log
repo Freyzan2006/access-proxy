@@ -1,6 +1,0 @@
-[PID:13958] [dev] [INFO ] [2025-10-05 15:02:15] 🚀 Proxy сервер запущен на http://localhost:8080 (main.go:58)
-[PID:13958] [dev] [INFO ] [2025-10-05 15:02:24] 📡 GET / (main.go:53)
-[PID:13958] [dev] [INFO ] [2025-10-05 15:02:24] 📡 GET /favicon.ico (main.go:53)
-[PID:46627] [dev] [INFO ] [2025-10-06 12:53:55] 🚀 Proxy сервер запущен на http://localhost:8080 (proxy/server/http_server.go:34)
-[PID:46627] [dev] [INFO ] [2025-10-06 12:54:04] 📡 GET / (proxy/server/http_server.go:41)
-[PID:46627] [dev] [INFO ] [2025-10-06 12:54:05] 📡 GET /favicon.ico (proxy/server/http_server.go:41)
