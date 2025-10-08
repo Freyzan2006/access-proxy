@@ -25,7 +25,7 @@ func NewHttpServer(proxy ProxyServer, port int, log logger.Logger) *httpServer {
 		proxy:  proxy,
 		port:   port,
 		log:    log,
-		handler: http.DefaultServeMux, // стандартный обработчик
+		handler: http.DefaultServeMux, 
 	}
 }
 

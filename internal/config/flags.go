@@ -13,7 +13,6 @@ type flagRefs struct {
 	blocked  *types.StringSlice
 }
 
-// defineFlags объявляет флаги и возвращает их указатели
 func defineFlags(defaults *Config) *flagRefs {
 	var allowed types.StringSlice
 	var blocked types.StringSlice

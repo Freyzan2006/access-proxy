@@ -16,23 +16,22 @@ type Config struct {
 func LoadConfig() *Config {
 	configPath := flag.String("config", "config.yaml", "Путь к YAML конфигурации")
 
-	flag.CommandLine.Parse([]string{}) // "предварительный" парсинг
+	flag.CommandLine.Parse([]string{}) 
 	yamlCfg := loadFromYAML(*configPath)
 
-	// 3️⃣ объявляем остальные флаги с дефолтами
+
 	flagsRefs := defineFlags(yamlCfg)
 
-	// 4️⃣ теперь парсим настоящие аргументы
+
 	flag.Parse()
 
-	// 5️⃣ собираем конфиг, учитывая приоритет флагов
+
 	final := mergeConfigs(yamlCfg, flagsRefs)
 
 	fmt.Printf("✅ Конфигурация загружена: %+v\n", final)
 	return final
 }
 
-// mergeConfigs теперь использует значения флагов после Parse()
 func mergeConfigs(yml *Config, flags *flagRefs) *Config {
 	final := *yml
 
