@@ -31,7 +31,7 @@ func NewHttpServer(proxy ProxyServer, port int, log logger.Logger) *httpServer {
 
 
 func (s *httpServer) ListenAndServe() error {
-	s.log.Infof("🚀 Proxy сервер запущен на http://localhost:%d", s.port)
+	s.log.Infof("Proxy сервер запущен на http://localhost:%d", s.port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", s.port), s.handler)
 }
 

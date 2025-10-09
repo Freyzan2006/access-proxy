@@ -2,7 +2,6 @@ package config
 
 import (
 	"flag"
-	"fmt"
 )
 
 type Config struct {
@@ -28,7 +27,7 @@ func LoadConfig() *Config {
 
 	final := mergeConfigs(yamlCfg, flagsRefs)
 
-	fmt.Printf("✅ Конфигурация загружена: %+v\n", final)
+	
 	return final
 }
 

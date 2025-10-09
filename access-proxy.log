@@ -2,3 +2,12 @@
 [PID:12734] [dev] [INFO ] [2025-10-07 15:32:17] 🚀 Proxy сервер запущен на http://localhost:8000 (proxy/server/http_server.go:34)
 [PID:13470] [dev] [INFO ] [2025-10-07 15:35:49] 🚀 Proxy сервер запущен на http://localhost:3000 (proxy/server/http_server.go:34)
 [PID:13669] [dev] [INFO ] [2025-10-07 15:35:56] 🚀 Proxy сервер запущен на http://localhost:8000 (proxy/server/http_server.go:34)
+[PID:9949] [dev] [INFO ] [2025-10-09 14:29:21] 🚀 Proxy сервер запущен на http://localhost:8000 (proxy/server/http_server.go:34)
+[PID:11512] [dev] [INFO ] [2025-10-09 14:30:56] 🚀 Proxy сервер запущен на http://localhost:8000 (proxy/server/http_server.go:34)
+[PID:12876] [prod] [INFO ] [2025-10-09 14:31:44] 🚀 Proxy сервер запущен на http://localhost:8000 (proxy/server/http_server.go:34)
+[PID:13408] [prod] [INFO ] [2025-10-09 14:32:26] 🚀 Proxy сервер запущен на http://localhost:8000
+[PID:13603] [prod] [INFO ] [2025-10-09 14:32:36] 🚀 Proxy сервер запущен на http://localhost:8000
+[PID:14023] [dev] [INFO ] [2025-10-09 14:32:51] 🚀 Proxy сервер запущен на http://localhost:8000 (proxy/server/http_server.go:34)
+[PID:14570] [prod] [INFO ] [2025-10-09 14:33:06] 🚀 Proxy сервер запущен на http://localhost:8000
+[PID:14570] [prod] [INFO ] [2025-10-09 14:33:54] 📡 GET /
+[PID:14570] [prod] [INFO ] [2025-10-09 14:33:56] 📡 GET /favicon.ico

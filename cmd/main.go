@@ -12,7 +12,7 @@ const Target = "https://jsonplaceholder.typicode.com"
 
 func main() {
 	cfg := config.LoadConfig();
-	log := logger.New("access-proxy", logger.LevelDebug, "internal", logger.ModeDev)
+	log := logger.New("access-proxy", logger.LevelInfo, "internal", logger.ModeProd)
 	proxy := server.NewProxyServer(Target, log);
 	ser := server.NewHttpServer(proxy, cfg.Port, log);
 
