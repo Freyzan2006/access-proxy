@@ -685,3 +685,18 @@
 [PID:78282] [prod] [INFO ] [2025-10-11 15:53:48] 🌐 GET /
 [PID:78282] [prod] [WARN ] [2025-10-11 15:53:48] 🚫 Rate limit exceeded for [::1]:56892: GET /
 [PID:78282] [prod] [WARN ] [2025-10-11 15:53:50] 🚫 Rate limit exceeded for [::1]:56892: GET /
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:02] 🎯 Proxy target: https://httpbin.org
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:02] 🔒 Rate limiting enabled: 3 requests per minute
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:02] 🛡️  Rate limit middleware applied
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:02] 🚀 Proxy server starting: https://httpbin.org -> :8000
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:02] 🔒 Rate limiting enabled: 3 requests per minute
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:02] 🚀 Server starting on http://localhost:8000
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:02] 🔒 Rate limiting: true (limit: 3 req/min)
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:11] 📊 Rate limit: [::1]:58592 has 2/3 requests remaining
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:11] 🌐 GET /
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:16] 📊 Rate limit: [::1]:58592 has 1/3 requests remaining
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:16] 🌐 GET /ip
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:16] 📥 Incoming: GET /ip
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:16] ➡️  Forwarding to GET https://httpbin.org/ip
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:36] 📨 Response: 200 200 OK for /ip
+[PID:86012] [prod] [INFO ] [2025-10-11 16:09:36] ✅ Completed: GET /ip in 20.173922234s
