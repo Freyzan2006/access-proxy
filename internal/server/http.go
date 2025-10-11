@@ -2,11 +2,9 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
-
-	"os"
 
 	"access-proxy/internal/middleware"
 	"access-proxy/internal/ratelimit"
@@ -20,16 +18,17 @@ type HttpServer interface {
 }
 
 type httpServer struct {
-	proxy        ProxyServer
-	port         int
-	log          logger.Logger
-	rateLimiter  *ratelimit.RateLimiter
-	useRateLimit bool
-	target       string
-	logRequests  bool
+	proxy          ProxyServer
+	port           int
+	log            logger.Logger
+	rateLimiter    *ratelimit.RateLimiter
+	useRateLimit   bool
+	target         string
+	logRequests    bool
+	allowedDomains []string
 }
 
-func NewHttpServer(proxy ProxyServer, port int, log logger.Logger, rateLimitPerMinute int, target string, logRequests bool) HttpServer {
+func NewHttpServer(proxy ProxyServer, port int, log logger.Logger, rateLimitPerMinute int, target string, logRequests bool, allowedDomains []string) HttpServer {
 	var rateLimiter *ratelimit.RateLimiter
 	useRateLimit := rateLimitPerMinute > 0
 	
@@ -42,14 +41,19 @@ func NewHttpServer(proxy ProxyServer, port int, log logger.Logger, rateLimitPerM
 		log.Info("📝 Request logging enabled")
 	}
 
+	if len(allowedDomains) > 0 {
+		log.Infof("🌐 Domain restrictions enabled: %v", allowedDomains)
+	}
+
 	return &httpServer{
-		proxy:        proxy,
-		port:         port,
-		log:          log,
-		rateLimiter:  rateLimiter,
-		useRateLimit: useRateLimit,
-		target:       target,
-		logRequests:  logRequests,
+		proxy:          proxy,
+		port:           port,
+		log:            log,
+		rateLimiter:    rateLimiter,
+		useRateLimit:   useRateLimit,
+		target:         target,
+		logRequests:    logRequests,
+		allowedDomains: allowedDomains,
 	}
 }
 
@@ -71,8 +75,13 @@ func (s *httpServer) RegisterEndpoints() {
 			return
 		}
 		
-		if r.URL.Path == "/favicon.ico" {
-			s.faviconHandler(w, r)
+		if r.URL.Path == "/config" {
+			s.configHandler(w, r)
+			return
+		}
+		
+		if r.URL.Path == "/domains" {
+			s.domainsHandler(w, r)
 			return
 		}
 		
@@ -83,45 +92,187 @@ func (s *httpServer) RegisterEndpoints() {
 	// Применяем middleware в правильном порядке
 	var handler http.Handler = mainHandler
 	
-	// 1. Сначала логирование (самый внешний слой)
-	if s.logRequests {
-		handler = middleware.RequestLoggerMiddleware(s.log, true)(handler)
-		s.log.Info("📝 Request logging middleware applied")
+	// 1. Сначала проверка доменов
+	if len(s.allowedDomains) > 0 {
+		handler = middleware.DomainValidator(s.log, s.allowedDomains, s.target)(handler)
 	}
 	
-	// 2. Затем rate limiting
+	// 2. Затем логирование
+	if s.logRequests {
+		handler = middleware.RequestLoggerMiddleware(s.log, true)(handler)
+	}
+	
+	// 3. Затем rate limiting
 	if s.useRateLimit {
 		handler = s.rateLimiter.Middleware(handler)
-		s.log.Info("🛡️  Rate limit middleware applied")
 	}
 
 	// Устанавливаем финальный обработчик
 	http.Handle("/", handler)
 }
 
-func (s *httpServer) rateLimitInfoHandler(w http.ResponseWriter, r *http.Request) {
+// Корневой endpoint - информация о сервере
+func (s *httpServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	
-	if !s.useRateLimit {
-		fmt.Fprintf(w, `{"rate_limiting": false, "message": "Rate limiting is disabled"}`)
+	response := map[string]interface{}{
+		"service": "access-proxy",
+		"status":  "running",
+		"port":    s.port,
+		"target":  s.target,
+		"features": map[string]interface{}{
+			"rate_limiting":     s.useRateLimit,
+			"request_logging":   s.logRequests,
+			"domain_restrictions": len(s.allowedDomains) > 0,
+		},
+		"endpoints": map[string]string{
+			"health":         "/health",
+			"config":         "/config", 
+			"ratelimit_info": "/ratelimit-info",
+			"domains":        "/domains",
+			"proxy":          "/* (proxies to target)",
+		},
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// Health check
+func (s *httpServer) healthHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	
+
+	response := map[string]interface{}{
+		"status":  "healthy",
+		"service": "access-proxy",
+		"port":    s.port,
+		"target":  s.target,
+		"target_allowed": s.isTargetAllowed(),
+		"features": map[string]bool{
+			"rate_limiting":     s.useRateLimit,
+			"request_logging":   s.logRequests,
+			"domain_restrictions": len(s.allowedDomains) > 0,
+		},
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// Информация о конфигурации
+func (s *httpServer) configHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := map[string]interface{}{
+		"config": map[string]interface{}{
+			"port":                  s.port,
+			"target":                s.target,
+			"rate_limit_per_minute": s.GetRateLimit(),
+			"log_requests":          s.logRequests,
+			"allowed_domains":       s.allowedDomains,
+			"blocked_methods":       []string{"DELETE", "PATCH"}, // из конфига
+		},
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// Информация о доменах
+func (s *httpServer) domainsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := map[string]interface{}{
+		"domain_restrictions": len(s.allowedDomains) > 0,
+		"allowed_domains":     s.allowedDomains,
+		"current_target":      s.target,
+		"target_allowed":      s.isTargetAllowed(),
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// Информация о rate limit
+func (s *httpServer) rateLimitInfoHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !s.useRateLimit {
+		s.jsonResponse(w, map[string]interface{}{
+			"rate_limiting": false,
+			"message":       "Rate limiting is disabled",
+		})
+		return
+	}
+
 	identifier := s.getClientIP(r)
 	remaining := s.rateLimiter.GetRemaining(identifier)
-	
-	fmt.Fprintf(w, `{
+
+	s.jsonResponse(w, map[string]interface{}{
 		"rate_limiting": true,
-		"limit": %d,
-		"remaining": %d,
-		"window": "1 minute",
-		"your_ip": "%s"
-	}`, s.rateLimiter.GetLimit(), remaining, identifier)
+		"limit":         s.rateLimiter.GetLimit(),
+		"remaining":     remaining,
+		"window":        "1 minute",
+		"your_ip":       identifier,
+	})
+}
+
+// Вспомогательные методы
+func (s *httpServer) isTargetAllowed() bool {
+	if len(s.allowedDomains) == 0 {
+		return true
+	}
+	
+	targetDomain := s.extractDomain(s.target)
+	for _, allowed := range s.allowedDomains {
+		if targetDomain == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *httpServer) extractDomain(urlStr string) string {
+	// Упрощенная версия без обработки ошибок
+	parts := make([]string, 2)
+	copy(parts, splitTwo(urlStr, "://"))
+	if len(parts) < 2 {
+		return ""
+	}
+	
+	hostParts := splitTwo(parts[1], "/")
+	return splitTwo(hostParts[0], ":")[0]
+}
+
+func splitTwo(s, sep string) []string {
+	parts := make([]string, 2)
+	if idx := stringIndex(s, sep); idx >= 0 {
+		parts[0] = s[:idx]
+		parts[1] = s[idx+len(sep):]
+	} else {
+		parts[0] = s
+	}
+	return parts
+}
+
+func stringIndex(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
 }
 
 func (s *httpServer) getClientIP(r *http.Request) string {
@@ -131,94 +282,33 @@ func (s *httpServer) getClientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-func (s *httpServer) faviconHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+func (s *httpServer) jsonResponse(w http.ResponseWriter, data interface{}) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		s.log.Errorf("❌ JSON encoding error: %v", err)
+		http.Error(w, `{"error": "internal_server_error"}`, http.StatusInternalServerError)
 	}
-	
-	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *httpServer) rootHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Читаем HTML из файла
-	htmlContent, err := os.ReadFile("static/index.html")
-	if err != nil {
-		// Если файла нет, используем простой HTML
-		s.log.Warnf("Файл index.html не найден, используем встроенный шаблон")
-		htmlContent = []byte(`
-<!DOCTYPE html>
-<html>
-<head><title>Access Proxy</title></head>
-<body>
-	<h1>🚀 Access Proxy Server</h1>
-	<p>Работает на порту: ` + fmt.Sprintf("%d", s.port) + `</p>
-	<p>Target: ` + s.target + `</p>
-	{{if .RateLimitEnabled}}<p>Rate Limit: ` + fmt.Sprintf("%d", s.GetRateLimit()) + `/min</p>{{end}}
-	{{if .LogRequests}}<p>📝 Logging: ENABLED</p>{{end}}
-	<p><a href="/json">/json</a> | <a href="/ip">/ip</a></p>
-</body>
-</html>`)
-	}
-
-	// Заменяем простые шаблоны
-	htmlStr := string(htmlContent)
-	
-	if s.useRateLimit {
-		htmlStr = strings.ReplaceAll(htmlStr, "{{.RateLimitEnabled}}", "true")
-		htmlStr = strings.ReplaceAll(htmlStr, "{{.RateLimit}}", fmt.Sprintf("%d", s.GetRateLimit()))
-	} else {
-		htmlStr = strings.ReplaceAll(htmlStr, "{{.RateLimitEnabled}}", "false")
-		htmlStr = strings.ReplaceAll(htmlStr, "{{if .RateLimitEnabled}}", "")
-		htmlStr = strings.ReplaceAll(htmlStr, "{{end}}", "")
-	}
-	
-	htmlStr = strings.ReplaceAll(htmlStr, "{{.Target}}", s.target)
-	
-	if s.logRequests {
-		htmlStr = strings.ReplaceAll(htmlStr, "{{.LogRequests}}", "true")
-		htmlStr = strings.ReplaceAll(htmlStr, "{{if .LogRequests}}", "")
-		htmlStr = strings.ReplaceAll(htmlStr, "{{end}}", "")
-	} else {
-		htmlStr = strings.ReplaceAll(htmlStr, "{{.LogRequests}}", "false")
-		htmlStr = strings.ReplaceAll(htmlStr, "{{if .LogRequests}}", "")
-		htmlStr = strings.ReplaceAll(htmlStr, "{{end}}", "")
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte(htmlStr))
-}
-
-func (s *httpServer) healthHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{
-		"status": "healthy", 
-		"service": "access-proxy", 
-		"port": %d, 
-		"rate_limiting": %t,
-		"request_logging": %t,
-		"target": "%s"
-	}`, s.port, s.useRateLimit, s.logRequests, s.target)
+func (s *httpServer) jsonError(w http.ResponseWriter, message string, statusCode int) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(map[string]string{
+		"error":   http.StatusText(statusCode),
+		"message": message,
+	})
 }
 
 func (s *httpServer) ListenAndServe() error {
 	addr := fmt.Sprintf(":%d", s.port)
-	s.log.Infof("🚀 Server starting on http://localhost%s", addr)
-	s.log.Infof("🔒 Rate limiting: %t (limit: %d req/min)", s.useRateLimit, s.rateLimiter.GetLimit())
+	s.log.Infof("🚀 JSON Proxy API starting on http://localhost%s", addr)
+	s.log.Infof("🎯 Target: %s", s.target)
+	s.log.Infof("🔒 Rate limiting: %t", s.useRateLimit)
+	s.log.Infof("📝 Request logging: %t", s.logRequests)
+	s.log.Infof("🌐 Domain restrictions: %t", len(s.allowedDomains) > 0)
 	return http.ListenAndServe(addr, nil)
 }
 
-// Добавим метод для получения лимита
 func (s *httpServer) GetRateLimit() int {
 	if s.rateLimiter != nil {
 		return s.rateLimiter.GetLimit()
