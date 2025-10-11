@@ -4,6 +4,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"access-proxy/internal/ratelimit"
 
@@ -117,44 +118,20 @@ func (s *httpServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Читаем HTML из файла
+	htmlContent, err := os.ReadFile("static/index.html")
+	if err != nil {
+		// Если файла нет, используем простой HTML
+		s.log.Warnf("Файл index.html не найден.")
+	}
+
+	// Заменяем простые шаблоны
+	htmlStr := string(htmlContent)
+	
+	
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Access Proxy</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        .endpoint { background: #f5f5f5; padding: 10px; margin: 5px 0; border-radius: 4px; }
-        .rate-limit { background: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107; }
-        a { color: #007bff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-    </style>
-    <link rel="icon" href="data:,">
-</head>
-<body>
-    <h1>🚀 Access Proxy Server</h1>
-    <p>Прокси сервер запущен и работает!</p>
-    <p><strong>Целевой сервер:</strong> https://httpbin.org</p>
-    
-    <div class="rate-limit">
-        <h3>🔒 Rate Limiting: ВКЛЮЧЕН</h3>
-        <p><strong>Лимит:</strong> %d запросов в минуту</p>
-        <p><a href="/ratelimit-info">Проверить мой лимит</a></p>
-    </div>
-    
-    <h3>📡 Тестовые endpoint'ы:</h3>
-    <div class="endpoint"><a href="/json" target="_blank">/json</a> - Тестовый JSON</div>
-    <div class="endpoint"><a href="/ip" target="_blank">/ip</a> - Ваш IP адрес</div>
-    <div class="endpoint"><a href="/user-agent" target="_blank">/user-agent</a> - Ваш User-Agent</div>
-    <div class="endpoint"><a href="/headers" target="_blank">/headers</a> - Заголовки запроса</div>
-    <div class="endpoint"><a href="/get" target="_blank">/get</a> - GET параметры</div>
-    
-    <h3>⚠️ Тестирование Rate Limit:</h3>
-    <p>Попробуйте сделать более %d запросов в течение минуты чтобы увидеть ограничение.</p>
-</body>
-</html>
-`, s.rateLimiter.GetLimit(), s.rateLimiter.GetLimit())
+	w.Write([]byte(htmlStr))
 }
 
 func (s *httpServer) healthHandler(w http.ResponseWriter, r *http.Request) {
