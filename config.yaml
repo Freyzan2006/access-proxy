@@ -6,4 +6,4 @@ blocked_methods:
   - DELETE
   - PATCH
 rate_limit_per_minute: 3
-log_requests: true
+log_requests: false

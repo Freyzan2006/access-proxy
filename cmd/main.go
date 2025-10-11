@@ -22,14 +22,23 @@ func main() {
 	
 	proxy := server.NewProxyServer(cfg.Target, log)
 	
-	// Передаем rate limit в HTTP сервер
-	ser := server.NewHttpServer(proxy, cfg.Port, log, cfg.RateLimitPerMinute)
+	ser := server.NewHttpServer(
+		proxy, 
+		cfg.Port, 
+		log, 
+		cfg.RateLimitPerMinute,
+		cfg.Target,
+		cfg.LogRequests,
+	)
 
 	ser.RegisterEndpoints()
 	
 	log.Infof("🚀 Proxy server starting: %s -> :%d", cfg.Target, cfg.Port)
 	if cfg.RateLimitPerMinute > 0 {
 		log.Infof("🔒 Rate limiting enabled: %d requests per minute", cfg.RateLimitPerMinute)
+	}
+	if cfg.LogRequests {
+		log.Info("📝 Request logging enabled")
 	}
 	
 	ser.ListenAndServe()
