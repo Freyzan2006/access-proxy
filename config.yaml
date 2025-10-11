@@ -2,8 +2,9 @@ target: "https://httpbin.org"
 port: 8000
 allowed_domains:
   - httpbin.org
+  - localhost
 blocked_methods: 
   - DELETE
   - PATCH
-rate_limit_per_minute: 3
+rate_limit_per_minute: 100
 log_requests: false

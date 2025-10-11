@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"access-proxy/internal/middleware"
 	"access-proxy/internal/ratelimit"
@@ -42,7 +43,7 @@ func NewHttpServer(proxy ProxyServer, port int, log logger.Logger, rateLimitPerM
 	}
 
 	if len(allowedDomains) > 0 {
-		log.Infof("🌐 Domain restrictions enabled: %v", allowedDomains)
+		log.Infof("🌐 Client domain restrictions enabled: %v", allowedDomains)
 	}
 
 	return &httpServer{
@@ -80,8 +81,8 @@ func (s *httpServer) RegisterEndpoints() {
 			return
 		}
 		
-		if r.URL.Path == "/domains" {
-			s.domainsHandler(w, r)
+		if r.URL.Path == "/client-info" {
+			s.clientInfoHandler(w, r)
 			return
 		}
 		
@@ -92,9 +93,9 @@ func (s *httpServer) RegisterEndpoints() {
 	// Применяем middleware в правильном порядке
 	var handler http.Handler = mainHandler
 	
-	// 1. Сначала проверка доменов
+	// 1. Сначала проверка домена клиента
 	if len(s.allowedDomains) > 0 {
-		handler = middleware.DomainValidator(s.log, s.allowedDomains, s.target)(handler)
+		handler = middleware.ClientDomainValidator(s.log, s.allowedDomains)(handler)
 	}
 	
 	// 2. Затем логирование
@@ -111,7 +112,75 @@ func (s *httpServer) RegisterEndpoints() {
 	http.Handle("/", handler)
 }
 
-// Корневой endpoint - информация о сервере
+// Новый endpoint для информации о клиенте
+func (s *httpServer) clientInfoHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	clientDomain := s.extractClientDomain(r)
+	clientIP := s.getClientIP(r)
+
+	response := map[string]interface{}{
+		"client_info": map[string]string{
+			"ip":     clientIP,
+			"domain": clientDomain,
+		},
+		"domain_restrictions": map[string]interface{}{
+			"enabled":         len(s.allowedDomains) > 0,
+			"allowed_domains": s.allowedDomains,
+			"client_allowed":  s.isClientAllowed(r),
+		},
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// Вспомогательные методы для работы с клиентскими доменами
+func (s *httpServer) extractClientDomain(r *http.Request) string {
+	if origin := r.Header.Get("Origin"); origin != "" {
+		return s.extractDomainFromURL(origin)
+	}
+	if referer := r.Header.Get("Referer"); referer != "" {
+		return s.extractDomainFromURL(referer)
+	}
+	if host := r.Header.Get("Host"); host != "" {
+		return strings.Split(host, ":")[0]
+	}
+	return ""
+}
+
+func (s *httpServer) extractDomainFromURL(urlStr string) string {
+	if !strings.Contains(urlStr, "://") {
+		urlStr = "https://" + urlStr
+	}
+	
+	parts := strings.Split(urlStr, "://")
+	if len(parts) < 2 {
+		return ""
+	}
+	
+	hostParts := strings.Split(parts[1], "/")
+	host := hostParts[0]
+	return strings.Split(host, ":")[0]
+}
+
+func (s *httpServer) isClientAllowed(r *http.Request) bool {
+	if len(s.allowedDomains) == 0 {
+		return true
+	}
+	
+	clientDomain := s.extractClientDomain(r)
+	for _, allowed := range s.allowedDomains {
+		if clientDomain == allowed {
+			return true
+		}
+	}
+	return false
+}
+
+// Обновляем корневой handler
 func (s *httpServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -124,23 +193,23 @@ func (s *httpServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		"port":    s.port,
 		"target":  s.target,
 		"features": map[string]interface{}{
-			"rate_limiting":     s.useRateLimit,
-			"request_logging":   s.logRequests,
-			"domain_restrictions": len(s.allowedDomains) > 0,
+			"rate_limiting":        s.useRateLimit,
+			"request_logging":      s.logRequests,
+			"client_domain_check": len(s.allowedDomains) > 0,
 		},
 		"endpoints": map[string]string{
-			"health":         "/health",
-			"config":         "/config", 
-			"ratelimit_info": "/ratelimit-info",
-			"domains":        "/domains",
-			"proxy":          "/* (proxies to target)",
+			"health":      "/health",
+			"config":      "/config", 
+			"ratelimit":   "/ratelimit-info",
+			"client_info": "/client-info",
+			"proxy":       "/* (proxies to target)",
 		},
 	}
 
 	s.jsonResponse(w, response)
 }
 
-// Health check
+// Обновляем health handler
 func (s *httpServer) healthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -152,12 +221,12 @@ func (s *httpServer) healthHandler(w http.ResponseWriter, r *http.Request) {
 		"service": "access-proxy",
 		"port":    s.port,
 		"target":  s.target,
-		"target_allowed": s.isTargetAllowed(),
 		"features": map[string]bool{
-			"rate_limiting":     s.useRateLimit,
-			"request_logging":   s.logRequests,
-			"domain_restrictions": len(s.allowedDomains) > 0,
+			"rate_limiting":        s.useRateLimit,
+			"request_logging":      s.logRequests,
+			"client_domain_check": len(s.allowedDomains) > 0,
 		},
+		"client_allowed": s.isClientAllowed(r),
 	}
 
 	s.jsonResponse(w, response)
@@ -305,7 +374,7 @@ func (s *httpServer) ListenAndServe() error {
 	s.log.Infof("🎯 Target: %s", s.target)
 	s.log.Infof("🔒 Rate limiting: %t", s.useRateLimit)
 	s.log.Infof("📝 Request logging: %t", s.logRequests)
-	s.log.Infof("🌐 Domain restrictions: %t", len(s.allowedDomains) > 0)
+	s.log.Infof("🌐 Client domain restrictions: %t", len(s.allowedDomains) > 0)
 	return http.ListenAndServe(addr, nil)
 }
 
