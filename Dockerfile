@@ -25,8 +25,6 @@ WORKDIR /root/
 COPY --from=builder /app/access-proxy .
 # Копируем конфиг
 COPY --from=builder /app/config.yaml ./
-# Копируем HTML файлы из папки static
-COPY --from=builder /app/static/ ./static/
 
 # Создаем папку для логов
 RUN mkdir -p /var/log/access-proxy
