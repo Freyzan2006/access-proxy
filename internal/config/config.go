@@ -5,6 +5,7 @@ import (
 )
 
 type Config struct {
+	Target             string
 	Port               int
 	AllowedDomains     []string
 	BlockedMethods     []string
@@ -14,6 +15,7 @@ type Config struct {
 
 func LoadConfig() *Config {
 	configPath := flag.String("config", "config.yaml", "Путь к YAML конфигурации")
+	
 
 	flag.CommandLine.Parse([]string{}) 
 	yamlCfg := loadFromYAML(*configPath)
@@ -48,6 +50,9 @@ func mergeConfigs(yml *Config, flags *flagRefs) *Config {
 	}
 	if isFlagPassed("blocks") {
 		final.BlockedMethods = *flags.blocked
+	}
+	if isFlagPassed("target") {
+		final.Target = *flags.target
 	}
 
 	return &final

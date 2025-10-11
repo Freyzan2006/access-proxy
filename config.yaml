@@ -1,9 +1,9 @@
+target: "https://httpbin.org"
 port: 8000
 allowed_domains:
-  - api.github.com
-  - jsonplaceholder.typicode.com
-blocked_methods:
+  - httpbin.org
+blocked_methods: 
   - DELETE
   - PATCH
-rate_limit_per_minute: 100
+rate_limit_per_minute: 3
 log_requests: true

@@ -8,6 +8,7 @@ import (
 )
 
 type yamlFileConfig struct {
+	Target            string   `yaml:"target"`
 	Port              int      `yaml:"port"`
 	AllowedDomains    []string `yaml:"allowed_domains"`
 	BlockedMethods    []string `yaml:"blocked_methods"`
@@ -30,6 +31,7 @@ func loadFromYAML(path string) *Config {
 	}
 
 	return &Config{
+		Target:            yml.Target,
 		Port:              yml.Port,
 		AllowedDomains:    yml.AllowedDomains,
 		BlockedMethods:    yml.BlockedMethods,
