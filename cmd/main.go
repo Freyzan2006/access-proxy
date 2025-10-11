@@ -19,6 +19,7 @@ func main() {
 	fmt.Printf("Rate Limit: %d/min\n", cfg.RateLimitPerMinute)
 	fmt.Printf("Log Requests: %t\n", cfg.LogRequests)
 	fmt.Printf("Allowed Domains: %v\n", cfg.AllowedDomains)
+	fmt.Printf("Blocked Methods: %v\n", cfg.BlockedMethods)
 	fmt.Printf("=====================\n")
 	
 	proxy := server.NewProxyServer(cfg.Target, log)
@@ -31,6 +32,7 @@ func main() {
 		cfg.Target,
 		cfg.LogRequests,
 		cfg.AllowedDomains,
+		cfg.BlockedMethods,
 	)
 
 	ser.RegisterEndpoints()
@@ -43,7 +45,10 @@ func main() {
 		log.Info("📝 Request logging enabled")
 	}
 	if len(cfg.AllowedDomains) > 0 {
-		log.Infof("🌐 Domain restrictions enabled: %v", cfg.AllowedDomains)
+		log.Infof("🌐 Client domain restrictions enabled: %v", cfg.AllowedDomains)
+	}
+	if len(cfg.BlockedMethods) > 0 {
+		log.Infof("🚫 Method restrictions enabled: %v", cfg.BlockedMethods)
 	}
 	
 	ser.ListenAndServe()

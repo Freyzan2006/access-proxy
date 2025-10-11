@@ -27,9 +27,10 @@ type httpServer struct {
 	target         string
 	logRequests    bool
 	allowedDomains []string
+	blockedMethods []string
 }
 
-func NewHttpServer(proxy ProxyServer, port int, log logger.Logger, rateLimitPerMinute int, target string, logRequests bool, allowedDomains []string) HttpServer {
+func NewHttpServer(proxy ProxyServer, port int, log logger.Logger, rateLimitPerMinute int, target string, logRequests bool, allowedDomains []string, blockedMethods []string) HttpServer {
 	var rateLimiter *ratelimit.RateLimiter
 	useRateLimit := rateLimitPerMinute > 0
 	
@@ -46,6 +47,10 @@ func NewHttpServer(proxy ProxyServer, port int, log logger.Logger, rateLimitPerM
 		log.Infof("🌐 Client domain restrictions enabled: %v", allowedDomains)
 	}
 
+	if len(blockedMethods) > 0 {
+		log.Infof("🚫 Blocked methods: %v", blockedMethods)
+	}
+
 	return &httpServer{
 		proxy:          proxy,
 		port:           port,
@@ -55,6 +60,7 @@ func NewHttpServer(proxy ProxyServer, port int, log logger.Logger, rateLimitPerM
 		target:         target,
 		logRequests:    logRequests,
 		allowedDomains: allowedDomains,
+		blockedMethods: blockedMethods,  
 	}
 }
 
@@ -86,6 +92,16 @@ func (s *httpServer) RegisterEndpoints() {
 			return
 		}
 		
+		if r.URL.Path == "/methods" {
+			s.methodsHandler(w, r)
+			return
+		}
+
+		if r.URL.Path == "/domains" {
+			s.domainsHandler(w, r)
+			return
+		}
+		
 		// Все остальные пути через прокси
 		s.proxy.ServeHTTP(w, r)
 	})
@@ -93,17 +109,22 @@ func (s *httpServer) RegisterEndpoints() {
 	// Применяем middleware в правильном порядке
 	var handler http.Handler = mainHandler
 	
-	// 1. Сначала проверка домена клиента
+	// 1. Сначала блокировка методов (самый внешний слой) ← ДОБАВИТЬ ЭТОТ БЛОК
+	if len(s.blockedMethods) > 0 {
+		handler = middleware.MethodBlockerMiddleware(s.log, s.blockedMethods)(handler)
+	}
+	
+	// 2. Затем проверка домена клиента
 	if len(s.allowedDomains) > 0 {
 		handler = middleware.ClientDomainValidator(s.log, s.allowedDomains)(handler)
 	}
 	
-	// 2. Затем логирование
+	// 3. Затем логирование
 	if s.logRequests {
 		handler = middleware.RequestLoggerMiddleware(s.log, true)(handler)
 	}
 	
-	// 3. Затем rate limiting
+	// 4. Затем rate limiting
 	if s.useRateLimit {
 		handler = s.rateLimiter.Middleware(handler)
 	}
@@ -181,6 +202,7 @@ func (s *httpServer) isClientAllowed(r *http.Request) bool {
 }
 
 // Обновляем корневой handler
+// Обновляем корневой handler
 func (s *httpServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -195,13 +217,16 @@ func (s *httpServer) rootHandler(w http.ResponseWriter, r *http.Request) {
 		"features": map[string]interface{}{
 			"rate_limiting":        s.useRateLimit,
 			"request_logging":      s.logRequests,
-			"client_domain_check": len(s.allowedDomains) > 0,
+			"client_domain_check":  len(s.allowedDomains) > 0,
+			"method_restrictions":  len(s.blockedMethods) > 0,  
 		},
 		"endpoints": map[string]string{
 			"health":      "/health",
 			"config":      "/config", 
 			"ratelimit":   "/ratelimit-info",
 			"client_info": "/client-info",
+			"methods":     "/methods",  
+			"domains":     "/domains",
 			"proxy":       "/* (proxies to target)",
 		},
 	}
@@ -224,7 +249,8 @@ func (s *httpServer) healthHandler(w http.ResponseWriter, r *http.Request) {
 		"features": map[string]bool{
 			"rate_limiting":        s.useRateLimit,
 			"request_logging":      s.logRequests,
-			"client_domain_check": len(s.allowedDomains) > 0,
+			"client_domain_check":  len(s.allowedDomains) > 0,
+			"method_restrictions":  len(s.blockedMethods) > 0,  
 		},
 		"client_allowed": s.isClientAllowed(r),
 	}
@@ -232,7 +258,7 @@ func (s *httpServer) healthHandler(w http.ResponseWriter, r *http.Request) {
 	s.jsonResponse(w, response)
 }
 
-// Информация о конфигурации
+// Обновляем config handler (заменить хардкод)
 func (s *httpServer) configHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -246,7 +272,7 @@ func (s *httpServer) configHandler(w http.ResponseWriter, r *http.Request) {
 			"rate_limit_per_minute": s.GetRateLimit(),
 			"log_requests":          s.logRequests,
 			"allowed_domains":       s.allowedDomains,
-			"blocked_methods":       []string{"DELETE", "PATCH"}, // из конфига
+			"blocked_methods":       s.blockedMethods,  
 		},
 	}
 
@@ -375,6 +401,7 @@ func (s *httpServer) ListenAndServe() error {
 	s.log.Infof("🔒 Rate limiting: %t", s.useRateLimit)
 	s.log.Infof("📝 Request logging: %t", s.logRequests)
 	s.log.Infof("🌐 Client domain restrictions: %t", len(s.allowedDomains) > 0)
+	s.log.Infof("🚫 Method restrictions: %t", len(s.blockedMethods) > 0) 
 	return http.ListenAndServe(addr, nil)
 }
 
@@ -383,4 +410,50 @@ func (s *httpServer) GetRateLimit() int {
 		return s.rateLimiter.GetLimit()
 	}
 	return 0
+}
+
+
+
+// Новый endpoint для информации о методах
+func (s *httpServer) methodsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		s.jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	response := map[string]interface{}{
+		"method_restrictions": map[string]interface{}{
+			"enabled":         len(s.blockedMethods) > 0,
+			"blocked_methods": s.blockedMethods,
+			"allowed_methods": s.getAllowedMethods(),
+		},
+	}
+
+	s.jsonResponse(w, response)
+}
+
+// getAllowedMethods возвращает список разрешенных методов
+func (s *httpServer) getAllowedMethods() []string {
+	allMethods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+	if len(s.blockedMethods) == 0 {
+		return allMethods
+	}
+
+	var allowed []string
+	for _, method := range allMethods {
+		if !s.isMethodBlocked(method) {
+			allowed = append(allowed, method)
+		}
+	}
+	return allowed
+}
+
+// isMethodBlocked проверяет заблокирован ли метод
+func (s *httpServer) isMethodBlocked(method string) bool {
+	for _, blocked := range s.blockedMethods {
+		if strings.EqualFold(blocked, method) {
+			return true
+		}
+	}
+	return false
 }
