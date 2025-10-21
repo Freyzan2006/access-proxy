@@ -11,7 +11,7 @@ import (
 
 func main() {
 	cfg := config.LoadConfig()
-	log := logger.New("access-proxy", logger.LevelInfo, logger.ModeProd)
+	log := logger.New("access-proxy", logger.LevelInfo, logger.ModeDev)
 	
 	fmt.Printf("=== CONFIGURATION ===\n")
 	fmt.Printf("Target: %s\n", cfg.Target)

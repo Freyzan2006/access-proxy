@@ -1,8 +1,8 @@
-target: "https://httpbin.org"
+target: "http://httpbin.org"
 port: 8000
 allowed_domains:
-  - httpbin.org
-  - localhost
+  - 192.168.215.33
+  - ::1
 blocked_methods: 
   - DELETE
   - PATCH

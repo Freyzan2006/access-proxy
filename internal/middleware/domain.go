@@ -74,10 +74,10 @@ func extractClientIdentifier(r *http.Request) string {
 		}
 	}
 
-	// 4. Для локальных запросов используем "localhost"
+	// 4. Для локальных запросов используем реальный IP вместо "localhost"
 	clientIP := extractClientIP(r)
 	if isLocalRequest(clientIP) {
-		return "localhost"
+		return clientIP // Возвращаем IP вместо "localhost"
 	}
 
 	// 5. Для внешних запросов без домена используем IP
