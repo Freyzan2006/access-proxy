@@ -14,6 +14,7 @@ type yamlFileConfig struct {
 	BlockedMethods    []string `yaml:"blocked_methods"`
 	RateLimitPerMinute int     `yaml:"rate_limit_per_minute"`
 	LogRequests       bool     `yaml:"log_requests"`
+	Env               string   `yaml:"environment"`
 }
 
 // loadFromYAML читает конфиг из YAML и возвращает Config
@@ -37,5 +38,6 @@ func loadFromYAML(path string) *Config {
 		BlockedMethods:    yml.BlockedMethods,
 		RateLimitPerMinute: yml.RateLimitPerMinute,
 		LogRequests:       yml.LogRequests,
+		Env:               yml.Env,
 	}
 }

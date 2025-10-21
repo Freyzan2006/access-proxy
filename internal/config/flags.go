@@ -12,6 +12,7 @@ type flagRefs struct {
 	log      *bool
 	domains  *types.StringSlice
 	blocked  *types.StringSlice
+	env      *string
 }
 
 func defineFlags(defaults *Config) *flagRefs {
@@ -26,5 +27,6 @@ func defineFlags(defaults *Config) *flagRefs {
 		log:     flag.Bool("log", defaults.LogRequests, "Логировать запросы"),
 		domains: &allowed,
 		blocked: &blocked,
+		env: 	 flag.String("env", "dev", "Режим окружения: dev или prod"),
 	}
 }

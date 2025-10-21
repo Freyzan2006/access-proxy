@@ -4,6 +4,7 @@ package main
 import (
 	"access-proxy/internal/config"
 	"access-proxy/internal/server"
+	"access-proxy/internal/types"
 	"fmt"
 
 	"github.com/Freyzan2006/go-logger-lib/pkg/logger"
@@ -11,7 +12,15 @@ import (
 
 func main() {
 	cfg := config.LoadConfig()
-	log := logger.New("access-proxy", logger.LevelInfo, logger.ModeDev)
+
+	var log logger.Logger
+	switch cfg.Env {
+	case types.DEV:
+		log = logger.New("access-proxy", logger.LevelInfo, logger.ModeDev)
+	case types.PROD:
+		log = logger.New("access-proxy", logger.LevelInfo, logger.ModeProd)
+	}
+	
 	
 	fmt.Printf("=== CONFIGURATION ===\n")
 	fmt.Printf("Target: %s\n", cfg.Target)

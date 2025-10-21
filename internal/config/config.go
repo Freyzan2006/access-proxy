@@ -11,6 +11,7 @@ type Config struct {
 	BlockedMethods     []string
 	RateLimitPerMinute int
 	LogRequests        bool
+	Env                string
 }
 
 func LoadConfig() *Config {
@@ -53,6 +54,9 @@ func mergeConfigs(yml *Config, flags *flagRefs) *Config {
 	}
 	if isFlagPassed("target") {
 		final.Target = *flags.target
+	}
+	if isFlagPassed("env") {
+		final.Env = *flags.env
 	}
 
 	return &final

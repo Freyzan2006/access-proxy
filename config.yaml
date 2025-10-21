@@ -8,3 +8,4 @@ blocked_methods:
   - PATCH
 rate_limit_per_minute: 100
 log_requests: false
+environment: prod # dev/prod
